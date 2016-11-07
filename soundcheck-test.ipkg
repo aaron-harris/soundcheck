@@ -1,0 +1,16 @@
+package soundcheck
+
+license    = BSD3
+author     = Aaron Harris
+maintainer = meerwolf@gmail.com
+
+modules = SoundCheck
+        , SoundCheck.Arbitrary
+        , Test
+
+sourcedir  = src
+main       = Test
+executable = test.exe
+opts       = "-p effects"
+
+tests = Test.runTests
