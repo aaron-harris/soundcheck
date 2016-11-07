@@ -8,4 +8,4 @@ modules = SoundCheck
         , SoundCheck.Arbitrary
 
 sourcedir  = src
-opts       = "-p effects -Wall"
+opts       = "-p effects"
