@@ -6,6 +6,8 @@ maintainer = meerwolf@gmail.com
 
 modules = SoundCheck
         , SoundCheck.Arbitrary
+        , SoundCheck.Core
+        , SoundCheck.Effects
 
 sourcedir  = src
 opts       = "-p effects"

@@ -6,6 +6,8 @@ maintainer = meerwolf@gmail.com
 
 modules = SoundCheck
         , SoundCheck.Arbitrary
+        , SoundCheck.Core
+        , SoundCheck.Effects
         , Test
 
 sourcedir  = src
