@@ -38,7 +38,7 @@ testDefaults = MkTestParameters 100
 -----------------
 
 ||| A datatype representing a possibly-parametrized property.  All
-||| parameters must be instances of `Arbitrary`, so that appropriate
+||| parameters must be instances of `ArbShow`, so that appropriate
 ||| test data can be automatically generated.
 |||
 ||| While this type represents the "canonical" form for a property,
@@ -54,16 +54,16 @@ data Prop : List Type -> Type where
   Fails : Prop []
 
   ||| A parametrized test.
-  ||| @ a The type of the parameter, which must implement `Arbitrary`
+  ||| @ a The type of the parameter, which must implement `ArbShow`
   ||| @ f Test code, a function of `a` that returns a simpler `Prop`
-  Param : Arbitrary a => (f : a -> Prop as) -> Prop (a::as)
+  Param : ArbShow a => (f : a -> Prop as) -> Prop (a::as)
 
 ||| The `Testable` interface generalizes the `Prop` typeclass so that
 ||| more "ordinary" code (e.g., functions returning booleans) can be
 ||| tested.
 |||
 ||| @ as The list of parameter types for the test.  As with `Prop`,
-||| these must be `Arbitrary`; this is enforced by the type of
+||| these must implement `ArbShow`; this is enforced by the type of
 ||| the `property` method.
 interface Testable (as : List Type) ty | ty where
 
@@ -80,9 +80,7 @@ Testable [] Bool where
   property True  = Succeeds
   property False = Fails
 
-||| Functions with `Arbitrary` parameters and `Testable` return values
-||| are themselves `Testable`.
-(Arbitrary a, Testable as ty) => Testable (a::as) (a -> ty) where
+(ArbShow a, Testable as ty) => Testable (a::as) (a -> ty) where
   property f = Param (property . f)
 
 -- Result type
@@ -140,12 +138,12 @@ private
 runProp :  (params : TestParameters)
         -> (p      : Prop as)
         -> (l      : List String)
-        -> Eff (TestResult) [SELECT, EXCEPTION (TestResult)]
-runProp _      Succeeds  _  = raise Success
-runProp _      Fails     xs = pure $ Failure $ reverse xs
-runProp params (Param f) xs = do
-  x <- select $ arbitrary $ testDepth params
-  runProp params (f x) (show x :: xs)
+        -> Eff TestResult [SELECT, EXCEPTION TestResult]
+runProp _      Succeeds  _                = raise Success
+runProp _      Fails     xs               = pure $ Failure $ reverse xs
+runProp params (Param f) xs {as = (a::_)} = do
+  (x,s) <- select $ arbShow {ty=a} $ testDepth params
+  runProp params (f x) (s :: xs)
 
 ||| Run a test, returning a `TestResult` object.
 |||

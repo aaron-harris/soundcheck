@@ -21,20 +21,32 @@ import SoundCheck.Arbitrary
 -- Type-parametrized tests
 --------------------------
 
+data ArbType : Type where
+  AT : (t : Type) -> (Arbitrary t) => ArbType
+
+[arbType] ArbShow ArbType where
+  arbShow _ = [(AT Nat, "Nat"), (AT Int, "Int"), (AT Integer, "Integer")]
+
 ||| A test to ensure that the `Arbitrary` instance for the specified
 ||| type is infinite.  Of course, we can't actually test for an
 ||| infinite structure, so we settle for checking that it never "runs
 ||| short"; i.e., `arbitrary k` always has `k` elements.
-fullArbitrary : (t : Type) -> Arbitrary t => Nat -> Bool
-fullArbitrary t k = length (arbitrary k {ty=t}) == k
+fullArbitrary : ArbType -> Nat -> Bool
+fullArbitrary (AT t) k = length (arbitrary k {ty=t}) == k
+
+data IntType : Type where
+  IT : (t : Type) -> (ArbShow t, Num t, Ord t) => IntType
+
+[intType] ArbShow IntType where
+  arbShow k = [(IT Int, "Int"), (IT Integer, "Integer")]
 
 ||| A test to ensure that the `Arbitrary` instance for the specified
 ||| numeric type contains elements with all possible signs.
-arbitrarySigns : (t : Type) -> (Arbitrary t, Num t, Ord t) => Bool
-arbitrarySigns t = all fails tests where
+arbitrarySigns : IntType -> Bool
+arbitrarySigns (IT t) = all fails tests where
   tests : List (t -> Bool)
   tests = [(0 <=), (<= 0), (/= 0)]
-  
+
 -- Single-purpose tests
 -----------------------
 
@@ -56,29 +68,28 @@ paramsNotSync = all fails tests where
 -- Test runner
 --------------
 
-||| The main test runner.
-runTests : IO ()
-runTests = do
-  putStrLn "Testing SoundCheck:"
-  putStrLn "-------------------"
+using implementation arbType, intType
 
-  -- The basics
-  check "True succeeds"                    True
-  check "False fails"                      (fails False)
-  -- Test that the Arbitrary instances are relatively thorough.
-  check "Arbitrary () is complete"         arbitraryUnit
-  check "Arbitrary Boolean is complete"    (fails not)
-  check "Arbitrary Nat is infinite"        (fullArbitrary Nat)
-  check "Arbitrary Int is infinite"        (fullArbitrary Int)
-  check "Arbitrary Int has all signs"      (arbitrarySigns Int)
-  check "Arbitrary Integer is infinite"    (fullArbitrary Integer)
-  check "Arbitrary Integer has all signs"  (arbitrarySigns Integer)
-  -- Other tests
-  check "Params not synchronized"          paramsNotSync
-  check {params = record {testDepth = 1} testDefaults}
-    "Non-standard test parameters"         not
-  
-  putStrLn ""
+  ||| The main test runner.
+  runTests : IO ()
+  runTests = do
+    putStrLn "Testing SoundCheck:"
+    putStrLn "-------------------"
+
+    -- The basics
+    check "True succeeds"                    True
+    check "False fails"                      (fails False)
+    -- Test that the Arbitrary instances are relatively thorough.
+    check "Arbitrary () is complete"         arbitraryUnit
+    check "Arbitrary Boolean is complete"    (fails not)
+    check "Full arbitrary for integers"      fullArbitrary
+    check "Arbitrary integers in all signs"  arbitrarySigns
+    -- Other tests
+    check "Params not synchronized"          paramsNotSync
+    check {params = record {testDepth = 1} testDefaults}
+      "Non-standard test parameters"         not
+
+    putStrLn ""
 
 ||| An alias for `runTests`, so this module can be used as an
 ||| executable.

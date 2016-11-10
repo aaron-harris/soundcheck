@@ -13,13 +13,18 @@ module SoundCheck.Arbitrary
 %access export
 %default total
 
+-- Arbitrary Interface
+----------------------
+
 ||| A much-simplified version of QuickCheck's `Arbitrary` typeclass
 ||| that can be used to generate test data.
 |||
-||| The `Show` constraint is required so that failing tests can
-||| display the data that caused them to fail.
+||| Because failing tests need to display the data that caused them to
+||| fail, types implementing this interface also need to implement
+||| `Show`.  If that's impossible, implement `ArbShow` instead of
+||| `Arbitrary`.
 public export
-interface Show ty => Arbitrary ty where
+interface Arbitrary ty where
 
   ||| A list of arbitrary data.
   |||
@@ -28,6 +33,9 @@ interface Show ty => Arbitrary ty where
   ||| fewer than `k` inhabitants.
   ||| @ k The number of pieces of data requested
   arbitrary : (k : Nat) -> List ty
+
+-- Implementations
+------------------
 
 Arbitrary () where
   arbitrary k = take k [()]
@@ -48,3 +56,37 @@ Arbitrary Int where
 
 Arbitrary Integer where
   arbitrary k = take k $ 0 :: alternate [1..] (negate <$> [1..])
+
+-- ArbShow Interface
+--------------------
+
+||| This is a weaker version of `Arbitrary` for use with types where
+||| implementing `Show` is difficult or impossible (e.g., `Type` or
+||| any kind of function type).
+|||
+||| Unfortunately, it is currently impossible to write an unnamed
+||| implementation for this interface.  The default implementation
+||| that combines existing `Arbitrary` and `Show` implementations is
+||| otherwise completely polymorphic, and the typeclass constraints do
+||| not prevent it from overlapping with other `ArbShow`
+||| implementations, even for types that do not implement `Show`.  To
+||| deal with this limitation, use named instances and wrap calls to
+||| `check` in `using implementation` blocks.
+public export
+interface ArbShow ty where
+
+  ||| A list of pairs `(x,s)`, where `x` is a piece of arbitrary data
+  ||| and `s` is a string representing `x`.
+  arbShow : (k : Nat) -> List (ty, String)
+
+||| Given a function `f` and a list `xs`, zip together `xs` and its
+||| image under `map f`, returning a list of pairs `(x, f x)`.
+|||
+||| @f A function to map over the list
+||| @xs The list
+private
+zipMap : (f : a -> b) -> (xs : List a) -> List (a,b)
+zipMap f xs = zip xs (f <$> xs)
+
+(Arbitrary ty, Show ty) => ArbShow ty where
+  arbShow k = zipMap show $ arbitrary k
